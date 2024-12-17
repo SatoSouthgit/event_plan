@@ -39,9 +39,11 @@
         function promptForTeamNumber() {
             let teamNumber = sessionStorage.getItem("teamNumber");
             if (!teamNumber) {
+                // 班番号入力フォームを表示
                 document.getElementById("team-number-form").style.display = "block";
                 document.getElementById("quiz-container").style.display = "none";
             } else {
+                // 班番号が保存されている場合、クイズを表示
                 document.getElementById("quiz-container").style.display = "block";
                 loadQuestion();
             }
@@ -51,6 +53,7 @@
         function saveTeamNumber() {
             let teamNumber = document.getElementById("team-number").value;
             if (teamNumber) {
+                // 入力した班番号をsessionStorageに保存
                 sessionStorage.setItem("teamNumber", teamNumber);
                 document.getElementById("team-number-form").style.display = "none";
                 document.getElementById("quiz-container").style.display = "block";
