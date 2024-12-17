@@ -1,0 +1,64 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    height: 100vh;
+    background-color: #f5f5f5;
+}
+
+h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+}
+
+#question {
+    font-size: 1.8rem;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#answer-container {
+    text-align: center;
+}
+
+#answer-input {
+    width: 300px;
+    height: 50px;
+    font-size: 1.2rem;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+button {
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    margin: 5px;
+}
+
+#results {
+    margin-top: 20px;
+}
+
+.waiting-message {
+    font-size: 1.5rem;
+    color: #555;
+    text-align: center;
+    margin-top: 20px;
+}
+
+#host-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 1rem;
+    padding: 5px 10px;
+}
+
+.grade-dropdown {
+    font-size: 1rem;
+    margin-left: 10px;
+}

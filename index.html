@@ -4,73 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Application</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            height: 100vh;
-            background-color: #f5f5f5;
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-        }
-
-        #question {
-            font-size: 1.8rem;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        #answer-container {
-            text-align: center;
-        }
-
-        #answer-input {
-            width: 300px;
-            height: 50px;
-            font-size: 1.2rem;
-            padding: 5px;
-            margin-bottom: 10px;
-        }
-
-        button {
-            font-size: 1.2rem;
-            padding: 10px 20px;
-            margin: 5px;
-        }
-
-        #results {
-            margin-top: 20px;
-        }
-
-        .waiting-message {
-            font-size: 1.5rem;
-            color: #555;
-            text-align: center;
-            margin-top: 20px;
-        }
-
-        #host-toggle {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 1rem;
-            padding: 5px 10px;
-        }
-
-        .grade-dropdown {
-            font-size: 1rem;
-            margin-left: 10px;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
     <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database(app);
+
         let hostMode = window.location.search.includes('host=true');
         let currentQuestionIndex = 0;
         let questions = [
@@ -78,7 +29,21 @@
             { question: "What is 2 + 2?\n(Hint: It is an even number)", id: 2 },
         ];
         let answers = {};
-        let grades = {}; // To store grades for each answer
+        let grades = {};
+
+        // 入力された班番号を保存する
+        function promptForTeamNumber() {
+            let teamNumber = sessionStorage.getItem("teamNumber");
+            if (!teamNumber) {
+                teamNumber = prompt("Please enter your team number:");
+                if (teamNumber) {
+                    sessionStorage.setItem("teamNumber", teamNumber);
+                } else {
+                    alert("Team number is required to proceed.");
+                    promptForTeamNumber();
+                }
+            }
+        }
 
         function toggleHostMode() {
             hostMode = !hostMode;
@@ -91,19 +56,6 @@
             window.location.href = url.toString();
         }
 
-        function promptForUserId() {
-            let userId = sessionStorage.getItem("userId");
-            if (!userId) {
-                userId = prompt("Please enter your participant number:");
-                if (userId) {
-                    sessionStorage.setItem("userId", userId);
-                } else {
-                    alert("Participant number is required to proceed.");
-                    promptForUserId();
-                }
-            }
-        }
-
         function loadQuestion() {
             const questionContainer = document.getElementById("question");
             const answerContainer = document.getElementById("answer-container");
@@ -111,7 +63,7 @@
 
             if (currentQuestionIndex < questions.length) {
                 questionContainer.innerHTML = questions[currentQuestionIndex].question.replace(/\n/g, '<br>');
-                answerContainer.style.display = 'block';
+                answerContainer.style.display = hostMode ? 'none' : 'block';  // Hide answer box in host mode
                 waitingMessage.style.display = 'none';
             } else {
                 questionContainer.textContent = "Quiz completed!";
@@ -125,25 +77,34 @@
 
         function submitAnswer() {
             const answer = document.getElementById("answer-input").value;
-            const userId = sessionStorage.getItem("userId");
+            const teamNumber = sessionStorage.getItem("teamNumber");
 
-            if (!userId) {
-                alert("Participant number is missing. Please refresh and enter your participant number.");
+            if (!teamNumber) {
+                alert("Team number is missing. Please refresh and enter your team number.");
                 return;
             }
 
-            answers[userId] = answers[userId] || [];
-            answers[userId].push({
+            if (!answer) {
+                alert("Please enter an answer.");
+                return;
+            }
+
+            answers[teamNumber] = answers[teamNumber] || [];
+            answers[teamNumber].push({
                 questionId: questions[currentQuestionIndex].id,
                 answer: answer
             });
 
-            syncAnswers();
+            saveAnswersToFirebase();
 
             document.getElementById("answer-input").value = "";
-
             document.getElementById("answer-container").style.display = 'none';
             document.getElementById("waiting-message").style.display = 'block';
+        }
+
+        function saveAnswersToFirebase() {
+            const teamNumber = sessionStorage.getItem("teamNumber");
+            firebase.database().ref('answers/' + teamNumber).set(answers[teamNumber]);
         }
 
         function allowNextQuestion() {
@@ -154,59 +115,55 @@
         function displayResults() {
             const resultsContainer = document.getElementById("results");
             resultsContainer.innerHTML = "<h2>Results</h2>";
-            for (const [userId, userAnswers] of Object.entries(answers)) {
-                resultsContainer.innerHTML += `<p>User ${userId}:<br>${userAnswers.map(a => `Q${a.questionId}: ${a.answer}`).join('<br>')}</p>`;
+            for (const [teamNumber, teamAnswers] of Object.entries(answers)) {
+                resultsContainer.innerHTML += `<p>Team ${teamNumber}:<br>${teamAnswers.map(a => `Q${a.questionId}: ${a.answer}`).join('<br>')}</p>`;
                 if (hostMode) {
-                    displayGradingOptions(userId, userAnswers);
+                    displayGradingOptions(teamNumber, teamAnswers);
                 }
             }
         }
 
-        function displayGradingOptions(userId, userAnswers) {
+        function displayGradingOptions(teamNumber, teamAnswers) {
             const resultsContainer = document.getElementById("results");
-            userAnswers.forEach((answer, index) => {
+            teamAnswers.forEach((answer, index) => {
                 const gradeOptions = Array.from({ length: 5 }, (_, i) => {
-                    return `<option value="${i + 1}" ${grades[userId] && grades[userId][index] === i + 1 ? 'selected' : ''}>${i + 1}</option>`;
+                    return `<option value="${i + 1}" ${grades[teamNumber] && grades[teamNumber][index] === i + 1 ? 'selected' : ''}>${i + 1}</option>`;
                 }).join('');
                 resultsContainer.innerHTML += `
                     <div>
                         <label>Grade for Q${answer.questionId}:</label>
-                        <select class="grade-dropdown" onchange="saveGrade('${userId}', ${index}, this.value)">
+                        <select class="grade-dropdown" onchange="saveGrade('${teamNumber}', ${index}, this.value)">
                             ${gradeOptions}
                         </select>
                     </div>`;
             });
         }
 
-        function saveGrade(userId, answerIndex, grade) {
-            if (!grades[userId]) grades[userId] = [];
-            grades[userId][answerIndex] = parseInt(grade, 10);
+        function saveGrade(teamNumber, answerIndex, grade) {
+            if (!grades[teamNumber]) grades[teamNumber] = [];
+            grades[teamNumber][answerIndex] = parseInt(grade, 10);
+            saveGradesToFirebase();
+        }
+
+        function saveGradesToFirebase() {
+            firebase.database().ref('grades').set(grades);
         }
 
         function syncAnswers() {
-            if (hostMode) {
-                localStorage.setItem("quizAnswers", JSON.stringify(answers));
-                localStorage.setItem("quizGrades", JSON.stringify(grades));
-            } else {
-                const storedAnswers = localStorage.getItem("quizAnswers");
-                const storedGrades = localStorage.getItem("quizGrades");
-                if (storedAnswers) {
-                    answers = JSON.parse(storedAnswers);
-                }
-                if (storedGrades) {
-                    grades = JSON.parse(storedGrades);
-                }
-            }
+            firebase.database().ref('answers').on('value', snapshot => {
+                answers = snapshot.val() || {};
+                displayResults();
+            });
         }
 
         function calculateFinalResults() {
             const finalResults = [];
-            for (const [userId, userAnswers] of Object.entries(answers)) {
-                const totalScore = userAnswers.reduce((sum, answer, index) => {
-                    const grade = grades[userId] && grades[userId][index];
+            for (const [teamNumber, teamAnswers] of Object.entries(answers)) {
+                const totalScore = teamAnswers.reduce((sum, answer, index) => {
+                    const grade = grades[teamNumber] && grades[teamNumber][index];
                     return sum + (grade || 0);
                 }, 0);
-                finalResults.push({ userId, totalScore });
+                finalResults.push({ teamNumber, totalScore });
             }
             finalResults.sort((a, b) => b.totalScore - a.totalScore);
             displayFinalResults(finalResults);
@@ -216,30 +173,13 @@
             const resultsContainer = document.getElementById("results");
             resultsContainer.innerHTML = "<h2>Final Results</h2>";
             finalResults.forEach(result => {
-                resultsContainer.innerHTML += `<p>User ${result.userId}: ${result.totalScore}</p>`;
+                resultsContainer.innerHTML += `<p>Team ${result.teamNumber}: ${result.totalScore}</p>`;
             });
         }
 
-        function pollForUpdates() {
-            setInterval(() => {
-                if (hostMode) {
-                    const storedAnswers = localStorage.getItem("quizAnswers");
-                    const storedGrades = localStorage.getItem("quizGrades");
-                    if (storedAnswers) {
-                        answers = JSON.parse(storedAnswers);
-                        grades = JSON.parse(storedGrades);
-                        displayResults();
-                    }
-                }
-            }, 1000);
-        }
-
         window.onload = () => {
-            if (!hostMode) {
-                promptForUserId();
-            }
+            promptForTeamNumber();  // ここで班番号を最初に入力させる
             syncAnswers();
-            pollForUpdates();
             document.getElementById("host-controls").style.display = hostMode ? 'block' : 'none';
             loadQuestion();
         };
