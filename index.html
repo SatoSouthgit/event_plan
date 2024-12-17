@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Application</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
     <script>
@@ -20,7 +19,7 @@
             appId: "1:17961350770:web:816a3cd3abb073740834eb"
         };
 
-        // Initialize Firebase
+        // Firebaseの初期化
         const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.database(app);
 
@@ -29,21 +28,23 @@
         let answers = {}; // 班番号ごとの回答
         let grades = {};  // 採点情報
 
-        // 問題データ
+        // クイズの問題
         const questions = [
             { question: "What is the capital of France?", id: 1 },
             { question: "What is 2 + 2?", id: 2 },
         ];
 
-        // 班番号の入力フォーム
+        // 班番号を入力
         function promptForTeamNumber() {
             let teamNumber = localStorage.getItem("teamNumber");
+
+            // 班番号が保存されていなければ、フォームを表示
             if (!teamNumber) {
-                // 班番号入力フォームを表示
                 document.getElementById("team-number-form").style.display = "block";
                 document.getElementById("quiz-container").style.display = "none";
             } else {
-                // 班番号が保存されている場合、クイズを表示
+                // 班番号が保存されていれば、クイズ画面を表示
+                document.getElementById("team-number-form").style.display = "none";
                 document.getElementById("quiz-container").style.display = "block";
                 loadQuestion();
             }
@@ -52,13 +53,13 @@
         // 班番号を保存
         function saveTeamNumber() {
             let teamNumber = document.getElementById("team-number").value;
+
+            // 番号が入力されていれば、保存
             if (teamNumber) {
-                // 入力した班番号をlocalStorageに保存
                 localStorage.setItem("teamNumber", teamNumber);
                 document.getElementById("team-number-form").style.display = "none";
                 document.getElementById("quiz-container").style.display = "block";
                 loadQuestion();
-                syncAnswers();
             } else {
                 alert("Please enter a team number.");
             }
@@ -82,6 +83,7 @@
             const answerContainer = document.getElementById("answer-container");
             const waitingMessage = document.getElementById("waiting-message");
 
+            // 問題を表示
             if (currentQuestionIndex < questions.length) {
                 questionContainer.innerHTML = questions[currentQuestionIndex].question;
                 answerContainer.style.display = hostMode ? 'none' : 'block';
