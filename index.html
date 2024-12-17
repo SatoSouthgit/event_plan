@@ -5,14 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Application</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
     <script>
+        // Firebase config (ここにあなたのFirebase設定を入力)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAqY92Krq-Zq5RmF4qeZwPElGAifea5q6g",
+            authDomain: "event-d4d17.firebaseapp.com",
+            databaseURL: "https://event-d4d17-default-rtdb.firebaseio.com",
+            projectId: "event-d4d17",
+            storageBucket: "event-d4d17.firebasestorage.app",
+            messagingSenderId: "17961350770",
+            appId: "1:17961350770:web:816a3cd3abb073740834eb"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database(app);
+
         let hostMode = window.location.search.includes('host=true');
         let currentQuestionIndex = 0;
-        let answers = {};  // 班番号ごとの回答
-        let grades = {};   // 採点情報
+        let answers = {}; // 班番号ごとの回答
+        let grades = {};  // 採点情報
 
         // 問題データ
-        let questions = [
+        const questions = [
             { question: "What is the capital of France?", id: 1 },
             { question: "What is 2 + 2?", id: 2 },
         ];
@@ -37,6 +55,7 @@
                 document.getElementById("team-number-form").style.display = "none";
                 document.getElementById("quiz-container").style.display = "block";
                 loadQuestion();
+                syncAnswers();
             } else {
                 alert("Please enter a team number.");
             }
@@ -90,14 +109,10 @@
                 return;
             }
 
-            answers[teamNumber] = answers[teamNumber] || [];
-            answers[teamNumber].push({
-                questionId: questions[currentQuestionIndex].id,
+            // Firebaseに回答を保存
+            firebase.database().ref('answers/' + teamNumber + '/' + currentQuestionIndex).set({
                 answer: answer
             });
-
-            // 回答結果をlocalStorageに保存して同期
-            localStorage.setItem("answers", JSON.stringify(answers));
 
             document.getElementById("answer-input").value = "";
             document.getElementById("answer-container").style.display = 'none';
@@ -109,8 +124,8 @@
             currentQuestionIndex++;
             loadQuestion();
 
-            // 次の問題を全参加者に通知
-            localStorage.setItem("currentQuestionIndex", currentQuestionIndex);
+            // Firebaseに次の問題インデックスを保存
+            firebase.database().ref('currentQuestionIndex').set(currentQuestionIndex);
             syncAnswers();  // 最新の回答結果を全参加者に同期
         }
 
@@ -118,75 +133,30 @@
         function displayResults() {
             const resultsContainer = document.getElementById("results");
             resultsContainer.innerHTML = "<h2>Results</h2>";
-            for (const [teamNumber, teamAnswers] of Object.entries(answers)) {
-                resultsContainer.innerHTML += `<p>Team ${teamNumber}:<br>${teamAnswers.map(a => `Q${a.questionId}: ${a.answer}`).join('<br>')}</p>`;
-                if (hostMode) {
-                    displayGradingOptions(teamNumber, teamAnswers);
-                }
-            }
-        }
-
-        // 採点オプションの表示
-        function displayGradingOptions(teamNumber, teamAnswers) {
-            const resultsContainer = document.getElementById("results");
-            teamAnswers.forEach((answer, index) => {
-                const gradeOptions = Array.from({ length: 5 }, (_, i) => {
-                    return `<option value="${i + 1}" ${grades[teamNumber] && grades[teamNumber][index] === i + 1 ? 'selected' : ''}>${i + 1}</option>`;
-                }).join('');
-                resultsContainer.innerHTML += `
-                    <div>
-                        <label>Grade for Q${answer.questionId}:</label>
-                        <select class="grade-dropdown" onchange="saveGrade('${teamNumber}', ${index}, this.value)">
-                            ${gradeOptions}
-                        </select>
-                    </div>`;
+            firebase.database().ref('answers').once('value').then(function(snapshot) {
+                snapshot.forEach(function(childSnapshot) {
+                    const teamNumber = childSnapshot.key;
+                    const teamAnswers = childSnapshot.val();
+                    resultsContainer.innerHTML += `<p>Team ${teamNumber}:<br>${Object.values(teamAnswers).map(a => `Answer: ${a.answer}`).join('<br>')}</p>`;
+                });
             });
         }
 
-        // 採点結果を保存
-        function saveGrade(teamNumber, answerIndex, grade) {
-            if (!grades[teamNumber]) grades[teamNumber] = [];
-            grades[teamNumber][answerIndex] = parseInt(grade, 10);
-        }
-
-        // 最終結果を表示
-        function calculateFinalResults() {
-            const finalResults = [];
-            for (const [teamNumber, teamAnswers] of Object.entries(answers)) {
-                const totalScore = teamAnswers.reduce((sum, answer, index) => {
-                    const grade = grades[teamNumber] && grades[teamNumber][index];
-                    return sum + (grade || 0);
-                }, 0);
-                finalResults.push({ teamNumber, totalScore });
-            }
-            finalResults.sort((a, b) => b.totalScore - a.totalScore);
-            displayFinalResults(finalResults);
-        }
-
-        // 最終結果を表示
-        function displayFinalResults(finalResults) {
-            const resultsContainer = document.getElementById("results");
-            resultsContainer.innerHTML = "<h2>Final Results</h2>";
-            finalResults.forEach(result => {
-                resultsContainer.innerHTML += `<p>Team ${result.teamNumber}: ${result.totalScore}</p>`;
-            });
-        }
-
-        // データを同期
+        // リアルタイムでデータを同期
         function syncAnswers() {
-            const storedAnswers = localStorage.getItem("answers");
-            if (storedAnswers) {
-                answers = JSON.parse(storedAnswers);
+            firebase.database().ref('answers').on('value', function(snapshot) {
+                const answersData = snapshot.val();
+                answers = answersData || {};
                 displayResults();
-            }
+            });
 
-            // 班番号ごとの回答が進んだ状態で同期
-            const storedIndex = localStorage.getItem("currentQuestionIndex");
-            if (storedIndex) {
-                currentQuestionIndex = parseInt(storedIndex, 10);
-            }
-
-            loadQuestion(); // 問題を再読み込み
+            firebase.database().ref('currentQuestionIndex').on('value', function(snapshot) {
+                const storedIndex = snapshot.val();
+                if (storedIndex !== null) {
+                    currentQuestionIndex = storedIndex;
+                    loadQuestion(); // 問題を再読み込み
+                }
+            });
         }
 
         window.onload = () => {
@@ -222,7 +192,6 @@
         <div id="host-controls" style="display: none;">
             <button onclick="allowNextQuestion()">Next Question</button>
             <button onclick="displayResults()">Show Results</button>
-            <button onclick="calculateFinalResults()">Show Final Results</button>
         </div>
 
         <div id="results"></div>
