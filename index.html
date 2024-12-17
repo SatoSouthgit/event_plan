@@ -37,7 +37,7 @@
 
         // 班番号の入力フォーム
         function promptForTeamNumber() {
-            let teamNumber = sessionStorage.getItem("teamNumber");
+            let teamNumber = localStorage.getItem("teamNumber");
             if (!teamNumber) {
                 // 班番号入力フォームを表示
                 document.getElementById("team-number-form").style.display = "block";
@@ -53,8 +53,8 @@
         function saveTeamNumber() {
             let teamNumber = document.getElementById("team-number").value;
             if (teamNumber) {
-                // 入力した班番号をsessionStorageに保存
-                sessionStorage.setItem("teamNumber", teamNumber);
+                // 入力した班番号をlocalStorageに保存
+                localStorage.setItem("teamNumber", teamNumber);
                 document.getElementById("team-number-form").style.display = "none";
                 document.getElementById("quiz-container").style.display = "block";
                 loadQuestion();
@@ -100,7 +100,7 @@
         // 回答を送信
         function submitAnswer() {
             const answer = document.getElementById("answer-input").value;
-            const teamNumber = sessionStorage.getItem("teamNumber");
+            const teamNumber = localStorage.getItem("teamNumber");
 
             if (!teamNumber) {
                 alert("Team number is missing. Please refresh and enter your team number.");
