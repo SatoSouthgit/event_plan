@@ -25,6 +25,7 @@
                 document.getElementById("quiz-container").style.display = "none";
             } else {
                 document.getElementById("quiz-container").style.display = "block";
+                loadQuestion();
             }
         }
 
@@ -63,6 +64,7 @@
                 questionContainer.innerHTML = questions[currentQuestionIndex].question;
                 answerContainer.style.display = hostMode ? 'none' : 'block';
                 waitingMessage.style.display = 'none';
+                syncAnswers();
             } else {
                 questionContainer.textContent = "Quiz completed!";
                 answerContainer.style.display = 'none';
@@ -94,6 +96,9 @@
                 answer: answer
             });
 
+            // 回答結果をlocalStorageに保存して同期
+            localStorage.setItem("answers", JSON.stringify(answers));
+
             document.getElementById("answer-input").value = "";
             document.getElementById("answer-container").style.display = 'none';
             document.getElementById("waiting-message").style.display = 'block';
@@ -103,6 +108,10 @@
         function allowNextQuestion() {
             currentQuestionIndex++;
             loadQuestion();
+
+            // 次の問題を全参加者に通知
+            localStorage.setItem("currentQuestionIndex", currentQuestionIndex);
+            syncAnswers();  // 最新の回答結果を全参加者に同期
         }
 
         // 結果を表示
@@ -163,10 +172,27 @@
             });
         }
 
+        // データを同期
+        function syncAnswers() {
+            const storedAnswers = localStorage.getItem("answers");
+            if (storedAnswers) {
+                answers = JSON.parse(storedAnswers);
+                displayResults();
+            }
+
+            // 班番号ごとの回答が進んだ状態で同期
+            const storedIndex = localStorage.getItem("currentQuestionIndex");
+            if (storedIndex) {
+                currentQuestionIndex = parseInt(storedIndex, 10);
+            }
+
+            loadQuestion(); // 問題を再読み込み
+        }
+
         window.onload = () => {
             promptForTeamNumber();
             document.getElementById("host-controls").style.display = hostMode ? 'block' : 'none';
-            loadQuestion();
+            syncAnswers();  // 最初にデータ同期
         };
     </script>
 </head>
