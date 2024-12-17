@@ -64,6 +64,11 @@
             font-size: 1rem;
             padding: 5px 10px;
         }
+
+        .grade-dropdown {
+            font-size: 1rem;
+            margin-left: 10px;
+        }
     </style>
     <script>
         let hostMode = window.location.search.includes('host=true');
@@ -73,6 +78,7 @@
             { question: "What is 2 + 2?\n(Hint: It is an even number)", id: 2 },
         ];
         let answers = {};
+        let grades = {}; // To store grades for each answer
 
         function toggleHostMode() {
             hostMode = !hostMode;
@@ -150,26 +156,78 @@
             resultsContainer.innerHTML = "<h2>Results</h2>";
             for (const [userId, userAnswers] of Object.entries(answers)) {
                 resultsContainer.innerHTML += `<p>User ${userId}:<br>${userAnswers.map(a => `Q${a.questionId}: ${a.answer}`).join('<br>')}</p>`;
+                if (hostMode) {
+                    displayGradingOptions(userId, userAnswers);
+                }
             }
+        }
+
+        function displayGradingOptions(userId, userAnswers) {
+            const resultsContainer = document.getElementById("results");
+            userAnswers.forEach((answer, index) => {
+                const gradeOptions = Array.from({ length: 5 }, (_, i) => {
+                    return `<option value="${i + 1}" ${grades[userId] && grades[userId][index] === i + 1 ? 'selected' : ''}>${i + 1}</option>`;
+                }).join('');
+                resultsContainer.innerHTML += `
+                    <div>
+                        <label>Grade for Q${answer.questionId}:</label>
+                        <select class="grade-dropdown" onchange="saveGrade('${userId}', ${index}, this.value)">
+                            ${gradeOptions}
+                        </select>
+                    </div>`;
+            });
+        }
+
+        function saveGrade(userId, answerIndex, grade) {
+            if (!grades[userId]) grades[userId] = [];
+            grades[userId][answerIndex] = parseInt(grade, 10);
         }
 
         function syncAnswers() {
             if (hostMode) {
                 localStorage.setItem("quizAnswers", JSON.stringify(answers));
+                localStorage.setItem("quizGrades", JSON.stringify(grades));
             } else {
                 const storedAnswers = localStorage.getItem("quizAnswers");
+                const storedGrades = localStorage.getItem("quizGrades");
                 if (storedAnswers) {
                     answers = JSON.parse(storedAnswers);
                 }
+                if (storedGrades) {
+                    grades = JSON.parse(storedGrades);
+                }
             }
+        }
+
+        function calculateFinalResults() {
+            const finalResults = [];
+            for (const [userId, userAnswers] of Object.entries(answers)) {
+                const totalScore = userAnswers.reduce((sum, answer, index) => {
+                    const grade = grades[userId] && grades[userId][index];
+                    return sum + (grade || 0);
+                }, 0);
+                finalResults.push({ userId, totalScore });
+            }
+            finalResults.sort((a, b) => b.totalScore - a.totalScore);
+            displayFinalResults(finalResults);
+        }
+
+        function displayFinalResults(finalResults) {
+            const resultsContainer = document.getElementById("results");
+            resultsContainer.innerHTML = "<h2>Final Results</h2>";
+            finalResults.forEach(result => {
+                resultsContainer.innerHTML += `<p>User ${result.userId}: ${result.totalScore}</p>`;
+            });
         }
 
         function pollForUpdates() {
             setInterval(() => {
                 if (hostMode) {
                     const storedAnswers = localStorage.getItem("quizAnswers");
+                    const storedGrades = localStorage.getItem("quizGrades");
                     if (storedAnswers) {
                         answers = JSON.parse(storedAnswers);
+                        grades = JSON.parse(storedGrades);
                         displayResults();
                     }
                 }
@@ -205,6 +263,7 @@
     <div id="host-controls" style="display: none;">
         <button onclick="allowNextQuestion()">Next Question</button>
         <button onclick="displayResults()">Show Results</button>
+        <button onclick="calculateFinalResults()">Show Final Results</button>
     </div>
 
     <div id="results"></div>
