@@ -56,15 +56,34 @@
             text-align: center;
             margin-top: 20px;
         }
+
+        #host-toggle {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 1rem;
+            padding: 5px 10px;
+        }
     </style>
     <script>
-        const hostMode = window.location.search.includes('host=true');
+        let hostMode = window.location.search.includes('host=true');
         let currentQuestionIndex = 0;
         let questions = [
             { question: "What is the capital of France?\nProvide the full name.", id: 1 },
             { question: "What is 2 + 2?\n(Hint: It is an even number)", id: 2 },
         ];
         let answers = {};
+
+        function toggleHostMode() {
+            hostMode = !hostMode;
+            const url = new URL(window.location.href);
+            if (hostMode) {
+                url.searchParams.set('host', 'true');
+            } else {
+                url.searchParams.delete('host');
+            }
+            window.location.href = url.toString();
+        }
 
         function promptForUserId() {
             let userId = sessionStorage.getItem("userId");
@@ -169,6 +188,7 @@
     </script>
 </head>
 <body>
+    <button id="host-toggle" onclick="toggleHostMode()">Toggle Host Mode</button>
     <h1>Quiz Application</h1>
 
     <div id="question"></div>
