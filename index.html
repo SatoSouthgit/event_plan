@@ -25,26 +25,35 @@
         let hostMode = window.location.search.includes('host=true');
         let currentQuestionIndex = 0;
         let questions = [
-            { question: "What is the capital of France?\nProvide the full name.", id: 1 },
-            { question: "What is 2 + 2?\n(Hint: It is an even number)", id: 2 },
+            { question: "What is the capital of France?", id: 1 },
+            { question: "What is 2 + 2?", id: 2 },
         ];
         let answers = {};
         let grades = {};
 
-        // 入力された班番号を保存する
+        // 班番号の入力フォーム
         function promptForTeamNumber() {
             let teamNumber = sessionStorage.getItem("teamNumber");
             if (!teamNumber) {
-                teamNumber = prompt("Please enter your team number:");
-                if (teamNumber) {
-                    sessionStorage.setItem("teamNumber", teamNumber);
-                } else {
-                    alert("Team number is required to proceed.");
-                    promptForTeamNumber();
-                }
+                let teamNumberInput = document.getElementById("team-number-input");
+                document.getElementById("team-number-form").style.display = "block";  // 班番号フォームを表示
+                document.getElementById("start-quiz").style.display = "none";  // クイズ開始ボタンを非表示
+
+                // 班番号入力後
+                document.getElementById("submit-team-number").onclick = function() {
+                    teamNumber = document.getElementById("team-number").value;
+                    if (teamNumber) {
+                        sessionStorage.setItem("teamNumber", teamNumber);
+                        document.getElementById("team-number-form").style.display = "none";
+                        document.getElementById("start-quiz").style.display = "block";
+                    } else {
+                        alert("Please enter a valid team number.");
+                    }
+                };
             }
         }
 
+        // ホストモードの切り替え
         function toggleHostMode() {
             hostMode = !hostMode;
             const url = new URL(window.location.href);
@@ -56,14 +65,15 @@
             window.location.href = url.toString();
         }
 
+        // 問題の表示
         function loadQuestion() {
             const questionContainer = document.getElementById("question");
             const answerContainer = document.getElementById("answer-container");
             const waitingMessage = document.getElementById("waiting-message");
 
             if (currentQuestionIndex < questions.length) {
-                questionContainer.innerHTML = questions[currentQuestionIndex].question.replace(/\n/g, '<br>');
-                answerContainer.style.display = hostMode ? 'none' : 'block';  // Hide answer box in host mode
+                questionContainer.innerHTML = questions[currentQuestionIndex].question;
+                answerContainer.style.display = hostMode ? 'none' : 'block'; // ホストモードで回答欄を非表示
                 waitingMessage.style.display = 'none';
             } else {
                 questionContainer.textContent = "Quiz completed!";
@@ -75,6 +85,7 @@
             }
         }
 
+        // 回答を送信
         function submitAnswer() {
             const answer = document.getElementById("answer-input").value;
             const teamNumber = sessionStorage.getItem("teamNumber");
@@ -102,16 +113,19 @@
             document.getElementById("waiting-message").style.display = 'block';
         }
 
+        // Firebaseに回答を保存
         function saveAnswersToFirebase() {
             const teamNumber = sessionStorage.getItem("teamNumber");
             firebase.database().ref('answers/' + teamNumber).set(answers[teamNumber]);
         }
 
+        // 次の問題に進む
         function allowNextQuestion() {
             currentQuestionIndex++;
             loadQuestion();
         }
 
+        // 結果を表示
         function displayResults() {
             const resultsContainer = document.getElementById("results");
             resultsContainer.innerHTML = "<h2>Results</h2>";
@@ -123,6 +137,7 @@
             }
         }
 
+        // 採点オプションの表示
         function displayGradingOptions(teamNumber, teamAnswers) {
             const resultsContainer = document.getElementById("results");
             teamAnswers.forEach((answer, index) => {
@@ -139,23 +154,19 @@
             });
         }
 
+        // 採点結果を保存
         function saveGrade(teamNumber, answerIndex, grade) {
             if (!grades[teamNumber]) grades[teamNumber] = [];
             grades[teamNumber][answerIndex] = parseInt(grade, 10);
             saveGradesToFirebase();
         }
 
+        // Firebaseに採点結果を保存
         function saveGradesToFirebase() {
             firebase.database().ref('grades').set(grades);
         }
 
-        function syncAnswers() {
-            firebase.database().ref('answers').on('value', snapshot => {
-                answers = snapshot.val() || {};
-                displayResults();
-            });
-        }
-
+        // クイズの最終結果を表示
         function calculateFinalResults() {
             const finalResults = [];
             for (const [teamNumber, teamAnswers] of Object.entries(answers)) {
@@ -169,6 +180,7 @@
             displayFinalResults(finalResults);
         }
 
+        // 最終結果を表示
         function displayFinalResults(finalResults) {
             const resultsContainer = document.getElementById("results");
             resultsContainer.innerHTML = "<h2>Final Results</h2>";
@@ -178,7 +190,7 @@
         }
 
         window.onload = () => {
-            promptForTeamNumber();  // ここで班番号を最初に入力させる
+            promptForTeamNumber();
             syncAnswers();
             document.getElementById("host-controls").style.display = hostMode ? 'block' : 'none';
             loadQuestion();
@@ -188,6 +200,15 @@
 <body>
     <button id="host-toggle" onclick="toggleHostMode()">Toggle Host Mode</button>
     <h1>Quiz Application</h1>
+
+    <!-- 班番号入力フォーム -->
+    <div id="team-number-form" style="display: none;">
+        <label for="team-number">Enter your team number:</label>
+        <input type="text" id="team-number" required>
+        <button id="submit-team-number">Submit</button>
+    </div>
+    
+    <button id="start-quiz" onclick="loadQuestion()" style="display: none;">Start Quiz</button>
 
     <div id="question"></div>
 
