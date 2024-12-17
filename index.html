@@ -27,8 +27,6 @@
         let currentQuestionIndex = 0;
         let answers = {}; // 班番号ごとの回答
         let grades = {};  // 採点情報
-
-        // クイズの問題
         const questions = [
             { question: "What is the capital of France?", id: 1 },
             { question: "What is 2 + 2?", id: 2 },
@@ -54,7 +52,6 @@
         function saveTeamNumber() {
             let teamNumber = document.getElementById("team-number").value;
 
-            // 番号が入力されていれば、保存
             if (teamNumber) {
                 localStorage.setItem("teamNumber", teamNumber);
                 document.getElementById("team-number-form").style.display = "none";
@@ -83,7 +80,6 @@
             const answerContainer = document.getElementById("answer-container");
             const waitingMessage = document.getElementById("waiting-message");
 
-            // 問題を表示
             if (currentQuestionIndex < questions.length) {
                 questionContainer.innerHTML = questions[currentQuestionIndex].question;
                 answerContainer.style.display = hostMode ? 'none' : 'block';
